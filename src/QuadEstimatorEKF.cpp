@@ -195,8 +195,19 @@ MatrixXf QuadEstimatorEKF::GetRbgPrime(float roll, float pitch, float yaw)
   //   that your calculations are reasonable
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-
+  float theta =pitch;
+  float psi = yaw;
+  float phi = roll;
   
+  RbgPrime(0,0)=-cos(theta)*sin(psi);
+  RbgPrime(0,1)=(-sin(phi)*sin(theta)*sin(psi))-(cos(phi)*cos(psi));
+  RbgPrime(0,2)=(-cos(phi)*sin(theta)*sin(psi))+(sin(phi)*cos(psi));
+  RbgPrime(1,0)=cos(theta)*cos(psi);
+  RbgPrime(1,1)=(sin(phi)*sin(theta)*cos(psi))-(cos(phi)*sin(psi));
+  RbgPrime(1,2)=(cos(phi)*sin(theta)*cos(psi))+(sin(phi)*sin(psi));
+  RbgPrime(2,0)=0;
+  RbgPrime(2,1)=0;
+  RbgPrime(2,2)=0;
 
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
@@ -243,8 +254,15 @@ void QuadEstimatorEKF::Predict(float dt, V3F accel, V3F gyro)
   gPrime.setIdentity();
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
+  gPrime(0,3)=dt;
+  gPrime(1,4)=dt;
+  gPrime(2,5)=dt;
 
+  gPrime(3,6)=(RbgPrime(0)*accel).sum()*dt;
+  gPrime(4,6)=(RbgPrime(1)*accel).sum()*dt;
+  gPrime(5,6)=(RbgPrime(2)*accel).sum()*dt;
 
+  ekfCov = (gPrime*ekfCov*gPrime.transpose()) + Q;
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   ekfState = newState;
