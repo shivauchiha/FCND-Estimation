@@ -24,7 +24,7 @@
 You're reading it! Below I describe how I addressed each rubric point and where in my code each point is handled.
 
 
-### Implementing Your Control Algorithm
+### Implementing Your Estimation Algorithm
 
 #### 1. Sensor Noise 
 In this section we try to model the sensor noise of both GPS X data and Accelerometer X data . Basically find the standard deviation in such a way that it captures 68% of sensor measurements. Here I used pandas to read log data and used .std() functionality of the data to find standard deviation of our sensor model this was then set in config file and tested.
@@ -48,7 +48,7 @@ Here we define hprime,state from previous predicted state and using GPS covarian
 #### 6. Adding Your Controller. 
 The old control code was replaced with one i wrote in my previous project.Surprisingly didnt have to tune much as my old parameters itself was enough to pass the evaluation
 
-
+---
 
 ###Conclusion
 All criteria was passed by evaluator.
