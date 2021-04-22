@@ -1,21 +1,19 @@
-## Project: 3D Control
+## Project: Estimation
 
 
 ---
 
 
 # Required Steps for a Passing Submission:
-1. Implemented body rate control in C++. 
-2. Implement roll pitch control in C++.
-3. Implement altitude controller in C++.
-4. Implement lateral position control in C++.
-5. Implement yaw control in C++.
-6. Implement calculating the motor commands given commanded thrust and moments in C++.
-7. Tune the parameters to pass all five scenarios.
-8. Write up
+ 1. Sensor Noise
+ 2. Attitude Estimation
+ 3. Prediction Step
+ 4. Magnetometer Update
+ 5. Closed Loop + GPS Update
+ 6. Adding Your Controller
 
 
-## [Rubric](https://review.udacity.com/#!/rubrics/1643/view) Points
+## [Rubric](https://review.udacity.com/#!/rubrics/1807/view) Points
 ### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
 
 ---
@@ -28,58 +26,32 @@ You're reading it! Below I describe how I addressed each rubric point and where 
 
 ### Implementing Your Control Algorithm
 
-#### 1. Implemented body rate control in C++.
-The job of this function is to provide appropriate momentum cmds for the drone to perform to achieve control objective.These momentum cmd follow the control law
-
-
-	(pqrCmd-pqr)*Inertia*kpPQR;
-
-
-
-As you can see the cmds are a function of desired pitch , roll and yaw rates.The moments of inertia are calculated based on mass and form factor of the drone.[List of moments of inertia](https://en.wikipedia.org/wiki/List_of_moments_of_inertia)
+#### 1. Sensor Noise 
+In this section we try to model the sensor noise of both GPS X data and Accelerometer X data . Basically find the standard deviation in such a way that it captures 68% of sensor measurements. Here I used pandas to read log data and used .std() functionality of the data to find standard deviation of our sensor model this was then set in config file and tested.
  
 
-#### 2. Implement roll pitch control in C++.
-This is the function that generates roll and pitch rates to follow based on desired global x,y acceleration and thrust.It takes in the drones attitude to calculate desired error and applies it to the following control law.
+#### 2. Attitude Estimation
+We improve the integration scheme using non linear complimentry filter . The concept is based in eq43 of [document](https://www.overleaf.com/project/5c34caab7ecefc04087273b9).Here we convert estimated roll,pitch and yaw from euler form to quaternion form then we use already available integrate function to integrate gyro rates into the system.Them using roll , pitch information from accelerometers we implement a complementary filter as described under attitude estimation section of same document mentioned above.All the coding is under UpdatefromIMU() function.
 
 
-	pqrCmd.x = (R(1,0) * b_x_p_term - R(0,0) * b_y_p_term) / R(2,2);
-  	pqrCmd.y = (R(1,1) * b_x_p_term - R(0,1) * b_y_p_term) / R(2,2);
-  	pqrCmd.z = 0;  
+
+#### 3. Prediction Step
+Here we write a function that generated RBG prime matrix used in udate step of extended kalman filter.Equation 52 of the document is used to write the matrix. After this under predict function a projection algorithm is implemented as part of ekf update steps that moves state of the system forward in time . This uses the gprime matrix that uses RBG prime matrix which we wrote earlier. Using this we predict the covariance . please note state prediction step was already called in code template.
 
 
-Here R elements are related to rotation matrix that helps in conversion between global and drone frame.b_x_p and b_y_p are related to function of commanded acceleration in global x-y frame.
-Care is also taken in such a way the tilt angle generated does not exceed drones capacity.
+#### 4. Magnetometer Update.
+Here we define hprime,state from previous predicted state and using magnetometer covariance matrix call an update function to sensor fuse magnetometer information to our state specifically yaw part of the state . The math for update step is already defined in Algorithm 2 part of EKF section.
 
-#### 3. Implement altitude controller in C++.
-This part of the controller is responsible for maintain the desired altitude of the drone.This takes in desired velocity and position along z axis and generates required thrust. This controller follows the below control law.
+#### 5. Closed Loop + GPS Update.
+Here we define hprime,state from previous predicted state and using GPS covariance matrix call an update function to sensor fuse GPS information to our state specifically x,y,z and its associated velocities part of the state . The math for update step is already defined in Algorithm 2 part of EKF section.
 
-	u_1_bar = p_term + d_term + i_term +accelZCmd;
+#### 6. Adding Your Controller. 
+The old control code was replaced with one i wrote in my previous project.Surprisingly didnt have to tune much as my old parameters itself was enough to pass the evaluation
 
-This is basically a feed forward PID controller. P_term is related to position error,d_term is related to velocity error and i_term is related to accumulated position error. This control is translated into thrust by following equation.
- 
-	thrust = -1*mass*(u_1_bar - 9.8f)/b_z;
- 
 
-#### 4. Implement lateral position control in C++.
-This controller is responsible for generating desired accelerations in global xy co-ordinate system based on desired position and velocity. The control law is a basic PD feed forward controller.A checking condition is also implemented to make sure the cmd_velocity is within the technical capabilites of the drone. Following control law is followed.
 
-	accelCmd = (kpPosXY*pos_error)+(kpVelXY*vel_error)+accelCmdFF;
-
-#### 5. Implement yaw control in C++.
-This is a simple P controller that controls the yaw of drone.It outputs desired yaw rates . Limit checking and efficient direction of turn conditions are implemented. The following control law is implemented.
-
-    
-        yawRateCmd = kpYaw* psi_err;
-
-#### 6. Implement calculating the motor commands given commanded thrust and moments in C++. 
-This part of the controller takes in commanded thrust and desired momentum command and generates  the desired thrust of the motor. The equation is based on following dynamics of the drone.
-
-        float arm = L / sqrt(2.f);
-  	cmd.desiredThrustsN[0] = 1/4.f * (collThrustCmd + (momentCmd.x / arm) + (momentCmd.y / arm) + (-momentCmd.z / kappa)); 
-  	cmd.desiredThrustsN[1] = 1/4.f * (collThrustCmd - (momentCmd.x / arm) + (momentCmd.y / arm) - (-momentCmd.z / kappa)); 
-  	cmd.desiredThrustsN[2] = 1/4.f * (collThrustCmd + (momentCmd.x / arm) - (momentCmd.y / arm) - (-momentCmd.z / kappa));
-  	cmd.desiredThrustsN[3] = 1/4.f * (collThrustCmd - (momentCmd.x / arm) - (momentCmd.y / arm) + (-momentCmd.z / kappa));
+###Conclusion
+All criteria was passed by evaluator.
 
 
 
